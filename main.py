@@ -104,8 +104,6 @@ def balance_by_gender_and_count(data, classes, num_classes):
 
 
 
-
-
 # 가중치 계산 함수
 def calculate_score(student, weights):
     score = 0
@@ -250,11 +248,15 @@ def assign_classes(num_classes):
 
     return classes
 
+final_classes = {}  # 전역 변수로 선언
+
+
 # 결과 저장 및 시각화
 def save_results(classes):
+    global final_classes
     # 결과를 학급별로 DataFrame으로 변환
     final_classes = {
-        class_name: pd.DataFrame(class_students)
+        class_name: pd.DataFrame(class_students).fillna("")
         for class_name, class_students in classes.items()
     }
 
