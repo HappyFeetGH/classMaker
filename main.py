@@ -36,11 +36,15 @@ def assign_split_students(classes, split_data, data, num_classes):
                 data = data[data["학생 이름"] != student_name]  # 배치된 학생 제거
     return data
 
-# 남/여 및 학급별 학생 수 균형 있게 배치
+# 남/여 및 학급별 학생 수 균형 있게 배치 (학생 섞기 + 학급 랜덤 배치)
 def balance_by_gender_and_count(data, classes, num_classes):
     # 남학생과 여학생 데이터 분리
     male_students = data[data["성별"] == "남"].to_dict("records")
     female_students = data[data["성별"] == "여"].to_dict("records")
+
+    # 학생 데이터 섞기
+    random.shuffle(male_students)
+    random.shuffle(female_students)
 
     # Step 1: 전체 남학생/여학생을 학급당 나눠야 할 수 계산
     total_male_students = len(male_students) + sum(
@@ -79,7 +83,8 @@ def balance_by_gender_and_count(data, classes, num_classes):
 
     # Step 3: 학급에 남학생 배치
     male_index = 0
-    for class_name, needed_males in remaining_males_needed.items():
+    for class_name in random.sample(list(classes.keys()), len(classes)):  # 학급 순서 무작위
+        needed_males = remaining_males_needed[class_name]
         for _ in range(needed_males):
             if male_index < len(male_students):
                 classes[class_name].append(male_students[male_index])
@@ -87,13 +92,15 @@ def balance_by_gender_and_count(data, classes, num_classes):
 
     # Step 4: 학급에 여학생 배치
     female_index = 0
-    for class_name, needed_females in remaining_females_needed.items():
+    for class_name in random.sample(list(classes.keys()), len(classes)):  # 학급 순서 무작위
+        needed_females = remaining_females_needed[class_name]
         for _ in range(needed_females):
             if female_index < len(female_students):
                 classes[class_name].append(female_students[female_index])
                 female_index += 1
 
     return classes
+
 
 
 
