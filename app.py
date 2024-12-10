@@ -54,16 +54,28 @@ def update_classes():
     return jsonify({"message": "Classes updated successfully"})
 
 
-
-
 @app.route('/save_to_excel', methods=['POST'])
 def save_to_excel():
     global final_classes
-    output_file_path = "./xlsx_storage/Class_Assignment_Results.xlsx"
-    with pd.ExcelWriter(output_file_path) as writer:
-        for class_name, df in final_classes.items():
-            df.to_excel(writer, sheet_name=class_name, index=False)
-    return jsonify({"message": "Excel file saved successfully"})
+
+    # 데이터 검증
+    if not final_classes:
+        return jsonify({"error": "No class data to save"}), 400
+
+    output_file_path = "./Class_Assignment_revalanced_Results.xlsx"
+    try:
+        with pd.ExcelWriter(output_file_path) as writer:
+            for class_name, df in final_classes.items():
+                if not isinstance(df, pd.DataFrame):
+                    return jsonify({"error": f"Invalid data type for class {class_name}"}), 400
+                df.to_excel(writer, sheet_name=class_name, index=False)
+
+        return jsonify({"message": "Excel file saved successfully"})
+    except Exception as e:
+        print(f"Error saving Excel file: {e}")  # 디버깅 로그
+        return jsonify({"error": "Failed to save Excel file"}), 500
+
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    #app.run(debug=True)
+    app.run(host='0.0.0.0', port=5000, debug=True)

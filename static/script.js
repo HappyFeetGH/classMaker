@@ -140,6 +140,19 @@ async function saveChanges() {
     }
 }
 
+async function saveToExcel() {
+    const response = await fetch('/save_to_excel', {
+        method: 'POST',
+    });
+    const result = await response.json();
+    if (response.ok) {
+        alert(result.message); // 성공 메시지
+    } else {
+        alert(`Error: ${result.error}`); // 오류 메시지
+    }
+}
+
+
 // Fetch initial data
 async function fetchClasses() {
     const response = await fetch('/get_classes');
@@ -153,5 +166,8 @@ async function fetchClasses() {
     renderClasses();
 }
 
+
 // Initialize
 fetchClasses();
+
+document.getElementById('save-excel-button').addEventListener('click', saveToExcel);
