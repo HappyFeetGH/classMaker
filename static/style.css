@@ -28,6 +28,11 @@ h1 {
     border-radius: 3px;
     cursor: grab;
 }
+.button-container {
+    display: flex; /* Flexbox 레이아웃 활성화 */
+    justify-content: center; /* 버튼을 가로 중앙 정렬 */
+    gap: 10px; /* 버튼 간격 조정 */
+}
 button {
     display: block;
     margin: 20px auto;
@@ -65,3 +70,38 @@ button:hover {
 .class-summary p[style*="blue"] {
     font-weight: bold;
 }
+
+
+.male {
+    background-color: #add8e6; /* 하늘색 */
+}
+
+.female {
+    background-color: #ffb6c1; /* 분홍색 */
+}
+
+.origin-class-1 {
+    background-color: #ffe4e1; /* 연한 핑크 */
+}
+
+.origin-class-2 {
+    background-color: #e6e6fa; /* 라벤더 */
+}
+
+.origin-class-3 {
+    background-color: #fafad2; /* 연한 노랑 */
+}
+
+.origin-class-4 {
+    background-color: #F5F5F5; /* white smoke */
+}
+
+.origin-class-5 {
+    background-color: #6AE8E8; /* 빛 청록 */
+}
+
+.origin-class-6 {
+    background-color: #E8B56A; /* 빛 주황색 */
+}
+
+

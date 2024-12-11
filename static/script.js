@@ -40,6 +40,8 @@ function renderClasses() {
             const studentDiv = document.createElement('div');
             studentDiv.classList.add('student');
             studentDiv.setAttribute('data-student-id', index); // 학생 인덱스 저장
+            studentDiv.setAttribute('data-gender', student["성별"]); // 성별 저장
+            studentDiv.setAttribute('data-origin-class', student["전 학년 반"]); // 출신 반 저장
             studentDiv.setAttribute('draggable', true);
             studentDiv.textContent = `${student["학생 이름"]} (${student["성별"]}) - ${student["비고"]}`;
             studentDiv.addEventListener('dragstart', handleDragStart);
@@ -48,6 +50,40 @@ function renderClasses() {
 
         container.appendChild(classBox);
     }
+}
+
+// 성별에 따른 색상 적용
+function applyGenderColors() {
+    const students = document.querySelectorAll('.student');
+    students.forEach(student => {
+        const gender = student.dataset.gender; // 성별 데이터
+        student.classList.remove('male', 'female'); // 기존 클래스 제거
+        if (gender === '남') {
+            student.classList.add('male');
+        } else if (gender === '여') {
+            student.classList.add('female');
+        }
+    });
+    console.log("done");
+}
+
+// 출신 반에 따른 색상 적용
+function applyOriginClassColors() {
+    const students = document.querySelectorAll('.student');
+    students.forEach(student => {
+        const originClass = student.dataset.originClass; // 출신 반 데이터
+        student.classList.remove(...Array.from(student.classList).filter(cls => cls.startsWith('origin-class-'))); // 기존 출신 반 클래스 제거
+        student.classList.add(`origin-class-${originClass}`);
+    });
+}
+
+// 색상 리셋
+function resetColors() {
+    const students = document.querySelectorAll('.student');
+    students.forEach(student => {
+        student.classList.remove('male', 'female');
+        student.classList.remove(...Array.from(student.classList).filter(cls => cls.startsWith('origin-class-')));
+    });
 }
 
 // Render a single summary line with comparison
@@ -125,6 +161,8 @@ function calculateStudentScore(student) {
     return score;
 }
 
+
+
 async function saveChanges() {
     console.log("Sending data to server:", classesData); // 디버깅용 데이터 출력
     const response = await fetch('/update_classes', {
@@ -171,3 +209,8 @@ async function fetchClasses() {
 fetchClasses();
 
 document.getElementById('save-excel-button').addEventListener('click', saveToExcel);
+
+document.getElementById('gender-color-button').addEventListener('click', applyGenderColors);
+document.getElementById('origin-class-color-button').addEventListener('click', applyOriginClassColors);
+document.getElementById('reset-color-button').addEventListener('click', resetColors);
+

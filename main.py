@@ -226,6 +226,7 @@ def calculate_score(student, weights):
 
 # 동적 반 편성 함수
 def assign_classes(num_classes):
+    global weights
     # 학급 초기화
     classes = {f"Class_{i+1}": [] for i in range(num_classes)}
 
@@ -240,10 +241,10 @@ def assign_classes(num_classes):
     balance_by_gender_and_count(remaining_data, classes, num_classes)
 
     # Step 3: 조건 기반 밸런싱
-    weights = {
-        "성적 등급 (A/B/C/D)": 1,
-        "생활지도 어려움 등급 (A/B/C/D)": 2
-    }
+    #weights = {
+    #    "성적 등급 (A/B/C/D)": 1,
+    #    "생활지도 어려움 등급 (A/B/C/D)": 2
+    #}
     swap_students_between_classes(classes, weights, split_data)
 
     return classes
@@ -271,12 +272,13 @@ def save_results(classes):
     print(f"Class assignment with summaries saved to {output_file_path}")
 
 weights = {
-        "성적 등급 (A/B/C/D)": 1,
-        "생활지도 어려움 등급 (A/B/C/D)": 2
+        "성적 등급 (A/B/C/D)": 2,
+        "생활지도 어려움 등급 (A/B/C/D)": 4,
+        "체력 (A/B/C/D)": 1
 }
 
 # 실행
-num_classes = 6  # 원하는 반의 수
+num_classes = 5  # 원하는 반의 수
 classes = assign_classes(num_classes)
 save_results(classes)
 
