@@ -179,16 +179,26 @@ async function saveChanges() {
 }
 
 async function saveToExcel() {
-    const response = await fetch('/save_to_excel', {
-        method: 'POST',
+    const response = await fetch('/download_excel', {
+        method: 'GET', // POST 대신 GET으로 변경
     });
-    const result = await response.json();
     if (response.ok) {
-        alert(result.message); // 성공 메시지
+        // ZIP 파일 다운로드 처리
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'Class_Data.zip'; // 다운로드할 파일 이름
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        window.URL.revokeObjectURL(url);
     } else {
+        const result = await response.json();
         alert(`Error: ${result.error}`); // 오류 메시지
     }
 }
+
 
 
 // Fetch initial data

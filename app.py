@@ -1,6 +1,8 @@
-from flask import Flask, jsonify, request, render_template
+from flask import Flask, jsonify, request, render_template, send_file
 from main import final_classes, calculate_score, generate_summary, weights  # main.py에서 함수 임포트
 import pandas as pd
+import io
+import zipfile
 
 app = Flask(__name__)
 
@@ -143,8 +145,106 @@ def save_to_excel():
     #    return jsonify({"error": "Failed to save Excel files"}), 500
 
 
+@app.route('/download_excel', methods=['GET'])
+def download_excel():
+    global final_classes
+
+    # 데이터 검증
+    if not final_classes:
+        return jsonify({"error": "No class data to download"}), 400
+
+    for i, class_name in enumerate(final_classes.keys(), start=1):
+        class_letter = chr(64 + i)  # 'class_1' -> A, 'class_2' -> B ...
+        final_classes[class_name]["새로운 학급"] = class_letter    
 
 
+    try:
+    # 메모리에 ZIP 파일 생성
+        zip_buffer = io.BytesIO()
+
+        with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
+            # **1. Original_Class_Data.xlsx 생성**
+            original_output = io.BytesIO()
+            with pd.ExcelWriter(original_output, engine='openpyxl') as writer:
+                # 모든 학생 데이터를 통합
+                all_students = pd.concat(final_classes.values(), ignore_index=True)
+
+                # 원본 반별 데이터 저장
+                for original_class in sorted(all_students["반"].unique()):
+                    # 해당 반에 속한 학생 필터링
+                    class_data = all_students[all_students["반"] == original_class]
+
+                    # 번호 순으로 정렬
+                    class_data = class_data.sort_values(by=["번호"])
+
+                    # 남학생/여학생 나누기
+                    males = class_data[class_data["성별"] == "남"]
+                    females = class_data[class_data["성별"] == "여"]
+
+                    # 시트 이름: 원본 반 번호
+                    sheet_name = f"{original_class}반"
+
+                    # 남학생 데이터 저장
+                    males_summary = males[["번호", "학생 이름", "새로운 학급", "비고"]]
+                    males_summary.rename(columns={"학생 이름": "남학생 이름"}, inplace=True)
+                    males_summary.to_excel(writer, sheet_name=sheet_name, index=False, startrow=0)
+
+                    # 여학생 데이터 저장
+                    females_summary = females[["번호", "학생 이름", "새로운 학급", "비고"]]
+                    females_summary.rename(columns={"학생 이름": "여학생 이름"}, inplace=True)
+                    females_summary.to_excel(writer, sheet_name=sheet_name, index=False, startrow=len(males_summary) + 3)
+
+            # ZIP 파일에 추가
+            original_output.seek(0)
+            zip_file.writestr("Original_Class_Data.xlsx", original_output.read())
+
+            # **2. New_Class_Data.xlsx 생성**
+            new_output = io.BytesIO()
+            with pd.ExcelWriter(new_output, engine='openpyxl') as writer:
+                for class_number, class_data in final_classes.items():
+                    if not isinstance(class_data, pd.DataFrame):
+                        continue
+
+                    # **새로운 학급 이름 추가 (A, B, C, ...)**
+                    class_letter = chr(64 + int(class_number.split('_')[1]))  # 'class_1' -> A, 'class_2' -> B ...
+                    class_data["새로운 학급"] = class_letter
+
+                    # **이름 순으로 정렬**
+                    class_data = class_data.sort_values(by=["학생 이름"])
+
+                    # 남학생/여학생 나누기
+                    males = class_data[class_data["성별"] == "남"]
+                    females = class_data[class_data["성별"] == "여"]
+
+                    # 시트 이름: 새로운 반 이름 (A반, B반, ...)
+                    sheet_name = f"{class_letter}반"
+
+                    # 남학생 데이터 저장
+                    males_summary = males[["학생 이름", "반", "비고"]]
+                    males_summary.rename(columns={"학생 이름": "남학생 이름", "반": "이전 학급"}, inplace=True)
+                    males_summary.to_excel(writer, sheet_name=sheet_name, index=False, startrow=0)
+
+                    # 여학생 데이터 저장
+                    females_summary = females[["학생 이름", "반", "비고"]]
+                    females_summary.rename(columns={"학생 이름": "여학생 이름", "반": "이전 학급"}, inplace=True)
+                    females_summary.to_excel(writer, sheet_name=sheet_name, index=False, startrow=len(males_summary) + 3)
+
+            # ZIP 파일에 추가
+            new_output.seek(0)
+            zip_file.writestr("New_Class_Data.xlsx", new_output.read())
+
+        # ZIP 파일 반환
+        zip_buffer.seek(0)
+        return send_file(
+            zip_buffer,
+            as_attachment=True,
+            download_name="Class_Data.zip",
+            mimetype="application/zip"
+        )
+
+    except Exception as e:
+        print(f"Error creating ZIP file: {e}")  # 디버깅 로그
+        return jsonify({"error": "Failed to create ZIP file"}), 500
 
 
 
