@@ -46,7 +46,8 @@ def balance_by_gender_and_count(data, classes, num_classes):
     random.shuffle(male_students)
     random.shuffle(female_students)
 
-    # Step 1: 전체 남학생/여학생을 학급당 나눠야 할 수 계산
+    # Step 1: 총 학생 수와 남학생/여학생 수 계산
+    total_students = len(male_students) + len(female_students)
     total_male_students = len(male_students) + sum(
         sum(1 for s in class_students if s["성별"] == "남") for class_students in classes.values()
     )
@@ -54,24 +55,31 @@ def balance_by_gender_and_count(data, classes, num_classes):
         sum(1 for s in class_students if s["성별"] == "여") for class_students in classes.values()
     )
 
+    # 학급별 목표치 계산
+    students_per_class = [total_students // num_classes] * num_classes
     males_per_class = [total_male_students // num_classes] * num_classes
     females_per_class = [total_female_students // num_classes] * num_classes
 
-    # 나머지 남학생/여학생을 앞 학급부터 채우기
+    # 나머지 학생을 앞 학급부터 채우기
+    for i in range(total_students % num_classes):
+        students_per_class[i] += 1
     for i in range(total_male_students % num_classes):
         males_per_class[i] += 1
     for i in range(total_female_students % num_classes):
         females_per_class[i] += 1
 
-    # Step 2: 이미 배치된 남학생/여학생 수 계산
+    # Step 2: 현재 배치된 남학생/여학생/전체 학생 수 계산
     current_male_counts = {
         class_name: sum(1 for s in class_students if s["성별"] == "남") for class_name, class_students in classes.items()
     }
     current_female_counts = {
         class_name: sum(1 for s in class_students if s["성별"] == "여") for class_name, class_students in classes.items()
     }
+    current_total_counts = {
+        class_name: len(class_students) for class_name, class_students in classes.items()
+    }
 
-    # 각 학급에 추가로 배치해야 할 남/여 학생 수 계산
+    # 각 학급에 추가로 배치해야 할 남학생/여학생/전체 학생 수 계산
     remaining_males_needed = {
         class_name: max(0, males_per_class[i] - current_male_counts[class_name])
         for i, class_name in enumerate(classes.keys())
@@ -80,26 +88,34 @@ def balance_by_gender_and_count(data, classes, num_classes):
         class_name: max(0, females_per_class[i] - current_female_counts[class_name])
         for i, class_name in enumerate(classes.keys())
     }
+    remaining_total_needed = {
+        class_name: max(0, students_per_class[i] - current_total_counts[class_name])
+        for i, class_name in enumerate(classes.keys())
+    }
 
-    # Step 3: 학급에 남학생 배치
-    male_index = 0
+    # Step 3: 학급에 남학생과 여학생 배치 (동시에 전체 학생 수 고려)
+    male_index, female_index = 0, 0
     for class_name in random.sample(list(classes.keys()), len(classes)):  # 학급 순서 무작위
-        needed_males = remaining_males_needed[class_name]
+        # 필요한 남학생, 여학생, 전체 학생 수 계산
+        needed_males = min(remaining_males_needed[class_name], remaining_total_needed[class_name])
+        needed_females = min(remaining_females_needed[class_name], remaining_total_needed[class_name] - needed_males)
+
+        # 남학생 배치
         for _ in range(needed_males):
             if male_index < len(male_students):
                 classes[class_name].append(male_students[male_index])
                 male_index += 1
+                remaining_total_needed[class_name] -= 1
 
-    # Step 4: 학급에 여학생 배치
-    female_index = 0
-    for class_name in random.sample(list(classes.keys()), len(classes)):  # 학급 순서 무작위
-        needed_females = remaining_females_needed[class_name]
+        # 여학생 배치
         for _ in range(needed_females):
             if female_index < len(female_students):
                 classes[class_name].append(female_students[female_index])
                 female_index += 1
+                remaining_total_needed[class_name] -= 1
 
     return classes
+
 
 
 
@@ -278,7 +294,7 @@ weights = {
 }
 
 # 실행
-num_classes = 5  # 원하는 반의 수
+num_classes = 6  # 원하는 반의 수
 classes = assign_classes(num_classes)
 save_results(classes)
 
