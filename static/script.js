@@ -21,29 +21,36 @@ function renderClasses() {
 
         // 학급 이름 추가
         const classHeader = document.createElement('h3');
-        classHeader.textContent = className;
+        classHeader.textContent = className === "Class_X" ? "미배정 학생" : className;
         classBox.appendChild(classHeader);
 
-        // 학급 요약 정보 추가
-        const summary = document.createElement('div');
-        summary.classList.add('class-summary');
-        summary.innerHTML = `
-            ${renderSummaryLine("총 학생 수", classData.summary["총 학생 수"], classData.originalSummary["총 학생 수"])}
-            ${renderSummaryLine("남학생 수", classData.summary["남학생 수"], classData.originalSummary["남학생 수"])}
-            ${renderSummaryLine("여학생 수", classData.summary["여학생 수"], classData.originalSummary["여학생 수"])}
-            <p>학급 전체 점수: ${classData.summary["학급 전체 점수"]}</p>
-        `;
-        classBox.appendChild(summary);
+        // 학급 요약 정보 추가 (Class_X는 요약 제외)
+        if (className !== "Class_X") {
+            const summary = document.createElement('div');
+            summary.classList.add('class-summary');
+            summary.innerHTML = `
+                ${renderSummaryLine("총 학생 수", classData.summary["총 학생 수"], classData.originalSummary["총 학생 수"])}
+                ${renderSummaryLine("남학생 수", classData.summary["남학생 수"], classData.originalSummary["남학생 수"])}
+                ${renderSummaryLine("여학생 수", classData.summary["여학생 수"], classData.originalSummary["여학생 수"])}
+                <p>학급 전체 점수: ${classData.summary["학급 전체 점수"]}</p>
+            `;
+            classBox.appendChild(summary);
+        }
 
         // 학생 목록 추가
         classData.students.forEach((student, index) => {
             const studentDiv = document.createElement('div');
             studentDiv.classList.add('student');
             studentDiv.setAttribute('data-student-id', index); // 학생 인덱스 저장
-            studentDiv.setAttribute('data-gender', student["성별"]); // 성별 저장
-            studentDiv.setAttribute('data-origin-class', student["전 학년 반"]); // 출신 반 저장
             studentDiv.setAttribute('draggable', true);
-            studentDiv.textContent = `${student["학생 이름"]} (${student["성별"]}) - ${student["비고"]}`;
+            //studentDiv.textContent = `${student["학생 이름"]} (${student["성별"]}) - ${student["비고"]}`;
+            studentDiv.setAttribute("data-origin-class", student["전 학년 반"]); // 출신 반 저장
+            studentDiv.innerHTML = `
+                <div>${student["학생 이름"]} (${student["성별"]}) - ${student["비고"]}</div>
+                <div class="class-info">
+                    출신 반: <span class="origin-class" style="background-color:${getClassColor(student["전 학년 반"])};">${student["전 학년 반"]}반</span> 
+                </div>
+            `;
             studentDiv.addEventListener('dragstart', handleDragStart);
             classBox.appendChild(studentDiv);
         });
@@ -52,39 +59,78 @@ function renderClasses() {
     }
 }
 
-// 성별에 따른 색상 적용
+function getClassColor(className) {
+    const classColors = {
+        "1": "#FFD700", // Yellow
+        "2": "#87CEFA", // Sky blue
+        "3": "#90EE90", // Light green
+        "4": "#FFB6C1", // Light pink
+        "5": "#D3D3D3", // Light gray
+        "Class_1": "#FFD700",
+        "Class_2": "#87CEFA",
+        "Class_3": "#90EE90",
+        "Class_4": "#FFB6C1",
+        "Class_5": "#D3D3D3",
+    };
+    return classColors[className] || "#FFFFFF"; // Default to white
+}
+
+// 성별 색상 적용
 function applyGenderColors() {
     const students = document.querySelectorAll('.student');
     students.forEach(student => {
-        const gender = student.dataset.gender; // 성별 데이터
-        student.classList.remove('male', 'female'); // 기존 클래스 제거
-        if (gender === '남') {
-            student.classList.add('male');
-        } else if (gender === '여') {
-            student.classList.add('female');
+        const gender = student.textContent.match(/\((남|여)\)/); // 성별 추출
+        if (gender) {
+            if (gender[1] === "남") {
+                student.style.backgroundColor = '#ADD8E6'; // 하늘색
+                student.style.color = 'black'; // 글씨 색상
+            } else if (gender[1] === "여") {
+                student.style.backgroundColor = '#FFC0CB'; // 분홍색
+                student.style.color = 'black'; // 글씨 색상
+            }
         }
     });
-    console.log("done");
 }
 
 // 출신 반에 따른 색상 적용
 function applyOriginClassColors() {
     const students = document.querySelectorAll('.student');
+    const classColors = {}; // 출신 반별 색상 저장
+    let colorIndex = 0;
+
     students.forEach(student => {
-        const originClass = student.dataset.originClass; // 출신 반 데이터
-        student.classList.remove(...Array.from(student.classList).filter(cls => cls.startsWith('origin-class-'))); // 기존 출신 반 클래스 제거
-        student.classList.add(`origin-class-${originClass}`);
+        const originClass = student.dataset.originClass; // 출신 반 데이터 (전 학년 반)
+        if (!originClass) return; // 출신 반 데이터가 없으면 건너뛰기
+
+        // 출신 반별 색상 생성 (고유 색상 할당)
+        if (!classColors[originClass]) {
+            classColors[originClass] = `hsl(${(colorIndex * 137.508) % 360}, 70%, 80%)`;
+            colorIndex++;
+        }
+
+        // 기존 색상 초기화
+        student.style.backgroundColor = '';
+        student.style.color = '';
+
+        // 새로운 색상 적용
+        student.style.backgroundColor = classColors[originClass];
+        student.style.color = 'black'; // 텍스트 가독성 확보
     });
 }
 
-// 색상 리셋
+
 function resetColors() {
     const students = document.querySelectorAll('.student');
     students.forEach(student => {
-        student.classList.remove('male', 'female');
+        // 모든 인라인 스타일 초기화
+        student.style.backgroundColor = '';
+        student.style.color = '';
+
+        // 기존 클래스 제거 (출신 반 색상 관련 클래스 등)
         student.classList.remove(...Array.from(student.classList).filter(cls => cls.startsWith('origin-class-')));
     });
 }
+
 
 // Render a single summary line with comparison
 function renderSummaryLine(label, currentValue, originalValue) {
@@ -224,3 +270,7 @@ document.getElementById('gender-color-button').addEventListener('click', applyGe
 document.getElementById('origin-class-color-button').addEventListener('click', applyOriginClassColors);
 document.getElementById('reset-color-button').addEventListener('click', resetColors);
 
+document.getElementById('show-color-legend').addEventListener('click', () => {
+    const legend = document.getElementById('color-legend');
+    legend.style.display = legend.style.display === 'none' ? 'block' : 'none';
+});

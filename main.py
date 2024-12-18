@@ -67,9 +67,10 @@ def assign_split_students(classes, split_data, data, num_classes):
     return data
 
 
-def balance_by_gender_and_count(data, classes, num_classes, weights, max_per_class_male=4, max_per_class_female=4):
+def balance_by_gender_and_count(data, classes, num_classes, weights, max_per_class_male=2, max_per_class_female=3):
     """
-    남녀 비율, 특정 반 출신 학생 수, 추가 점수 조건을 고려하여 학생을 배치하는 함수.
+    남녀 비율, 특정 반 출신 학생 수, 추가 점수 조건을 고려하여 학생을 배치.
+    배치할 수 없는 학생은 별도 Class_X로 배치.
     """
     # Step 1: 학생 데이터를 섞기
     students = data.to_dict("records")
@@ -79,6 +80,9 @@ def balance_by_gender_and_count(data, classes, num_classes, weights, max_per_cla
     class_names = list(classes.keys())
     class_prev_counts = {class_name: defaultdict(int) for class_name in class_names}
     class_gender_counts = {class_name: {"남": 0, "여": 0} for class_name in class_names}
+
+    # Step 3: 배치 불가능한 학생 저장용
+    unassigned_students = []
 
     def calculate_class_score(current_class, student):
         """
@@ -104,7 +108,7 @@ def balance_by_gender_and_count(data, classes, num_classes, weights, max_per_cla
         total_score = prev_class_penalty + gender_balance_penalty + student_score
         return total_score
 
-    # Step 3: 학생 배치 (그리디 + 제약 조건)
+    # Step 4: 학생 배치 (그리디 + 제약 조건)
     for student in students:
         prev_class = student["반"]
         gender = student["성별"]
@@ -120,18 +124,26 @@ def balance_by_gender_and_count(data, classes, num_classes, weights, max_per_cla
         candidate_classes.sort(key=lambda x: (x[1], x[2]))
 
         # 가장 균형 잡힌 학급에 배치
+        assigned = False
         for current_class, _, _ in candidate_classes:
-            # 성별에 따른 max_per_class 확인
             if gender == "남" and class_prev_counts[current_class][prev_class] < max_per_class_male:
                 classes[current_class].append(student)
                 class_prev_counts[current_class][prev_class] += 1
                 class_gender_counts[current_class][gender] += 1
+                assigned = True
                 break
             elif gender == "여" and class_prev_counts[current_class][prev_class] < max_per_class_female:
                 classes[current_class].append(student)
                 class_prev_counts[current_class][prev_class] += 1
                 class_gender_counts[current_class][gender] += 1
+                assigned = True
                 break
+
+        if not assigned:
+            unassigned_students.append(student)  # 배치할 수 없는 학생 저장
+
+    # Step 5: 배치 불가능한 학생을 Class_X에 추가
+    classes["Class_X"] = unassigned_students
 
     return classes
 
@@ -274,7 +286,7 @@ def assign_classes(num_classes):
 
     # Step 2: 남/여 및 학급별 학생 수 맞춰 배치
     #balance_by_gender_and_count(remaining_data, classes, num_classes)
-    classes = balance_by_gender_and_count(remaining_data, classes, num_classes, weights)
+    classes = balance_by_gender_and_count(remaining_data, classes, num_classes, weights, 3, 4)
 
     # Step 3: 조건 기반 밸런싱
     #weights = {
@@ -282,7 +294,7 @@ def assign_classes(num_classes):
     #    "생활지도 어려움 등급 (A/B/C/D)": 2
     #}
     #swap_students_between_classes(classes, weights, split_data)
-
+    
     return classes
 
 final_classes = {}  # 전역 변수로 선언

@@ -105,3 +105,14 @@ button:hover {
 }
 
 
+.class-info {
+    font-size: 0.9em;
+    margin-top: 5px;
+}
+
+.origin-class, .current-class {
+    padding: 3px 6px;
+    border-radius: 4px;
+    color: black;
+    font-weight: bold;
+}
