@@ -300,6 +300,8 @@ def assign_classes(num_classes):
 final_classes = {}  # 전역 변수로 선언
 
 
+
+
 # 결과 저장 및 시각화
 def save_results(classes):
     global final_classes

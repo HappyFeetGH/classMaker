@@ -153,13 +153,18 @@ def download_excel():
     if not final_classes:
         return jsonify({"error": "No class data to download"}), 400
 
+    # 새로운 학급 이름 추가
     for i, class_name in enumerate(final_classes.keys(), start=1):
         class_letter = chr(64 + i)  # 'class_1' -> A, 'class_2' -> B ...
-        final_classes[class_name]["새로운 학급"] = class_letter    
+        if not class_name.startswith("Class_X"):  # Class_X는 배제
+            final_classes[class_name]["새로운 학급"] = class_letter
 
+    # 미배정 학생 처리: Class_X가 없으면 빈 데이터프레임 추가
+    if "Class_X" not in final_classes:
+        final_classes["Class_X"] = pd.DataFrame(columns=["학생 이름", "반", "번호", "성별", "비고"])
 
     try:
-    # 메모리에 ZIP 파일 생성
+        # 메모리에 ZIP 파일 생성
         zip_buffer = io.BytesIO()
 
         with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
@@ -194,6 +199,10 @@ def download_excel():
                     females_summary.rename(columns={"학생 이름": "여학생 이름"}, inplace=True)
                     females_summary.to_excel(writer, sheet_name=sheet_name, index=False, startrow=len(males_summary) + 3)
 
+                # 미배정 학생(Class_X) 저장
+                unassigned = final_classes["Class_X"]  # 빈 데이터프레임이어도 처리 가능
+                unassigned.to_excel(writer, sheet_name="미배정 학생", index=False)
+
             # ZIP 파일에 추가
             original_output.seek(0)
             zip_file.writestr("Original_Class_Data.xlsx", original_output.read())
@@ -205,33 +214,59 @@ def download_excel():
                     if not isinstance(class_data, pd.DataFrame):
                         continue
 
+                    # **빈 학급 데이터 확인**
+                    if class_data.empty:
+                        print(f"Skipping empty class: {class_number}")
+                        continue
+
+                    # **필수 열 확인 및 기본값 추가**
+                    required_columns = ["학생 이름", "반", "비고"]
+                    for col in required_columns:
+                        if col not in class_data.columns:
+                            print(f"Missing column '{col}' in class {class_number}. Adding default.")
+                            class_data[col] = ""  # 기본값 추가
+
                     # **새로운 학급 이름 추가 (A, B, C, ...)**
-                    class_letter = chr(64 + int(class_number.split('_')[1]))  # 'class_1' -> A, 'class_2' -> B ...
-                    class_data["새로운 학급"] = class_letter
+                    if not class_number.startswith("Class_X"):
+                        class_letter = chr(64 + int(class_number.split('_')[1]))
+                        class_data["새로운 학급"] = class_letter
 
                     # **이름 순으로 정렬**
-                    class_data = class_data.sort_values(by=["학생 이름"])
+                    try:
+                        class_data = class_data.sort_values(by=["학생 이름"])
+                    except KeyError as e:
+                        print(f"Error sorting class {class_number}: {e}")
+                        continue
 
                     # 남학생/여학생 나누기
                     males = class_data[class_data["성별"] == "남"]
                     females = class_data[class_data["성별"] == "여"]
 
                     # 시트 이름: 새로운 반 이름 (A반, B반, ...)
-                    sheet_name = f"{class_letter}반"
+                    sheet_name = f"{class_letter}반" if not class_number.startswith("Class_X") else "미배정 학생"
 
                     # 남학생 데이터 저장
-                    males_summary = males[["학생 이름", "반", "비고"]]
-                    males_summary.rename(columns={"학생 이름": "남학생 이름", "반": "이전 학급"}, inplace=True)
-                    males_summary.to_excel(writer, sheet_name=sheet_name, index=False, startrow=0)
+                    try:
+                        males_summary = males[["학생 이름", "반", "비고"]]
+                        males_summary.rename(columns={"학생 이름": "남학생 이름", "반": "이전 학급"}, inplace=True)
+                        males_summary.to_excel(writer, sheet_name=sheet_name, index=False, startrow=0)
+                    except KeyError as e:
+                        print(f"Error processing male data for class {class_number}: {e}")
+                        continue
 
                     # 여학생 데이터 저장
-                    females_summary = females[["학생 이름", "반", "비고"]]
-                    females_summary.rename(columns={"학생 이름": "여학생 이름", "반": "이전 학급"}, inplace=True)
-                    females_summary.to_excel(writer, sheet_name=sheet_name, index=False, startrow=len(males_summary) + 3)
+                    try:
+                        females_summary = females[["학생 이름", "반", "비고"]]
+                        females_summary.rename(columns={"학생 이름": "여학생 이름", "반": "이전 학급"}, inplace=True)
+                        females_summary.to_excel(writer, sheet_name=sheet_name, index=False, startrow=len(males_summary) + 3)
+                    except KeyError as e:
+                        print(f"Error processing female data for class {class_number}: {e}")
+                        continue
 
             # ZIP 파일에 추가
             new_output.seek(0)
             zip_file.writestr("New_Class_Data.xlsx", new_output.read())
+
 
         # ZIP 파일 반환
         zip_buffer.seek(0)
@@ -245,6 +280,7 @@ def download_excel():
     except Exception as e:
         print(f"Error creating ZIP file: {e}")  # 디버깅 로그
         return jsonify({"error": "Failed to create ZIP file"}), 500
+
 
 
 
