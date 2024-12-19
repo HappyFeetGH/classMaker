@@ -1,5 +1,5 @@
 from flask import Flask, jsonify, request, render_template, send_file
-from main import final_classes, calculate_score, generate_summary, weights  # main.py에서 함수 임포트
+from main import final_classes, calculate_score, generate_summary, weights, split_data  # main.py에서 함수 임포트
 import pandas as pd
 import io
 import zipfile
@@ -37,6 +37,19 @@ def get_classes():
         }
 
     return jsonify(json_classes)
+
+@app.route('/get_split_data', methods=['GET'])
+def get_split_data():
+    try:
+        split_data_list = []
+        for _, row in split_data.iterrows():
+            group = [int(num) for num in row if not pd.isna(num)]  # NaN 제거
+            split_data_list.append(group)
+        return jsonify(split_data_list)
+    except Exception as e:
+        print(f"Error processing split data: {e}")
+        return jsonify({"error": "Failed to process split data"}), 500
+
 
 @app.route('/update_classes', methods=['POST'])
 def update_classes():

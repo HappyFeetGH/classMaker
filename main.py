@@ -280,20 +280,13 @@ def assign_classes(num_classes):
     # 데이터 로드
     data = load_data_from_folder(input_folder)
     split_data = pd.read_excel(split_file_path, header=None)
-
+    
     # Step 1: 분리 조건 학생 배치
     remaining_data = assign_split_students(classes, split_data, data, num_classes)
 
     # Step 2: 남/여 및 학급별 학생 수 맞춰 배치
     #balance_by_gender_and_count(remaining_data, classes, num_classes)
     classes = balance_by_gender_and_count(remaining_data, classes, num_classes, weights, 3, 4)
-
-    # Step 3: 조건 기반 밸런싱
-    #weights = {
-    #    "성적 등급 (A/B/C/D)": 1,
-    #    "생활지도 어려움 등급 (A/B/C/D)": 2
-    #}
-    #swap_students_between_classes(classes, weights, split_data)
     
     return classes
 
@@ -332,3 +325,4 @@ num_classes = 5  # 원하는 반의 수
 classes = assign_classes(num_classes)
 save_results(classes)
 
+split_data = pd.read_excel(split_file_path, header=None)

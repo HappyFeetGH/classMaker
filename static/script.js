@@ -1,5 +1,6 @@
 let classesData = {};
 let numClasses = 0;
+let currentSplitData = [];
 
 // Fetch initial data
 async function fetchClasses() {
@@ -38,6 +39,7 @@ function renderClasses() {
             classBox.appendChild(summary);
         }
 
+        
         // 학생 목록 추가
         classData.students.forEach((student, index) => {
             const studentDiv = document.createElement('div');
@@ -174,6 +176,7 @@ function handleDrop(event) {
     const studentId = parseInt(data.studentId);
     const targetClass = event.currentTarget.getAttribute('data-class-name');
 
+
     // Move student
     const student = classesData[sourceClass].students.splice(studentId, 1)[0];
     classesData[targetClass].students.push(student);
@@ -184,6 +187,9 @@ function handleDrop(event) {
 
     // Re-render
     renderClasses();
+
+    const splitResults = checkSplitConditions(currentSplitData, classesData);
+    renderSplitConditions(splitResults); // Update the split condition UI
 
     // Send updated data to server
     saveChanges();
@@ -229,6 +235,62 @@ function calculateTotalStudents(classesData) {
 function calculateNumClasses(classesData) {
     return Object.keys(classesData).length;
 }
+
+function checkSplitConditions(splitData, classesData) {
+    const results = [];
+
+    splitData.forEach(group => {
+        const groupDetails = group.map(id => {
+            const classNumber = Math.floor(id / 100);
+            const studentNumber = id % 100;
+
+            // 학생 데이터 찾기
+            for (const [className, classData] of Object.entries(classesData)) {
+                const student = classData.students.find(
+                    s => s["반"] === classNumber && s["번호"] === studentNumber
+                );
+                if (student) {
+                    return { ...student, currentClass: className };
+                }
+            }
+
+            return null; // 학생을 찾을 수 없을 경우
+        });
+
+        // 같은 반에 있는지 확인
+        const currentClasses = new Set(groupDetails.map(s => s?.currentClass).filter(Boolean));
+        const isSeparated = currentClasses.size === groupDetails.length;
+
+        results.push({ groupDetails, isSeparated });
+    });
+
+    return results;
+}
+
+function renderSplitConditions(splitResults) {
+    const container = document.getElementById('split-conditions');
+    container.innerHTML = ''; // 기존 내용 초기화
+
+    splitResults.forEach((result, index) => {
+        const groupDiv = document.createElement('div');
+        groupDiv.classList.add('split-group');
+        groupDiv.style.color = result.isSeparated ? 'black' : 'red'; // 분리 실패 시 빨간색
+
+        groupDiv.innerHTML = `
+            <h4>Group ${index + 1} (${result.isSeparated ? 'Separated' : 'Not Separated'})</h4>
+            <ul>
+                ${result.groupDetails
+                    .map(
+                        student =>
+                            `<li>${student ? `${student["학생 이름"]} (${student["반"]}반 ${student["번호"]}번 -> ${student.currentClass})` : 'Unknown Student'}</li>`
+                    )
+                    .join('')}
+            </ul>
+        `;
+        container.appendChild(groupDiv);
+    });
+}
+
 
 async function saveChanges() {
     console.log("Sending data to server:", classesData); // 디버깅용 데이터 출력
@@ -283,6 +345,60 @@ async function fetchClasses() {
     renderClasses();
 }
 
+async function fetchSplitData() {
+    try {
+        const response = await fetch('/get_split_data');
+        if (!response.ok) throw new Error("Failed to fetch split data.");
+        return await response.json();
+    } catch (error) {
+        console.error("Error loading split data:", error);
+        return [];
+    }
+}
+
+async function loadSplitConditions() {
+    try {
+        currentSplitData = await fetchSplitData(); // 전역 변수에 저장
+        const response = await fetch('/get_classes');
+        if (!response.ok) throw new Error("Failed to fetch class data.");
+
+        const classesData = await response.json();
+        const splitResults = checkSplitConditions(currentSplitData, classesData);
+
+        renderSplitConditions(splitResults);
+    } catch (error) {
+        console.error("Error loading split conditions:", error);
+    }
+}
+
+// Modal toggle logic
+function toggleModal() {
+    const modal = document.getElementById('split-conditions-modal');
+    modal.style.display = modal.style.display === "block" ? "none" : "block";
+}
+
+// Close button event listener
+document.querySelector('.close-button').addEventListener('click', () => {
+    document.getElementById('split-conditions-modal').style.display = "none";
+});
+
+// Escape key to close modal
+window.addEventListener('keydown', (event) => {
+    if (event.key === "Escape") {
+        document.getElementById('split-conditions-modal').style.display = "none";
+    }
+});
+
+// Call this function to update and show the modal
+function showSplitConditions(splitResults) {
+    renderSplitConditions(splitResults); // Update UI
+    toggleModal(); // Show modal
+}
+
+
+// 페이지 로드 시 실행
+loadSplitConditions();
+
 
 // Initialize
 fetchClasses();
@@ -296,4 +412,9 @@ document.getElementById('reset-color-button').addEventListener('click', resetCol
 document.getElementById('show-color-legend').addEventListener('click', () => {
     const legend = document.getElementById('color-legend');
     legend.style.display = legend.style.display === 'none' ? 'block' : 'none';
+});
+
+
+document.getElementById('show-split-conditions').addEventListener('click', () => {
+    toggleModal(); // Modal 열기
 });
