@@ -1,4 +1,5 @@
 let classesData = {};
+let numClasses = 0;
 
 // Fetch initial data
 async function fetchClasses() {
@@ -9,6 +10,7 @@ async function fetchClasses() {
 
 // Render classes
 function renderClasses() {
+    const { totalMaleStudents, totalFemaleStudents } = calculateTotalStudents(classesData);
     const container = document.getElementById('classes-container');
     container.innerHTML = '';
 
@@ -29,10 +31,9 @@ function renderClasses() {
             const summary = document.createElement('div');
             summary.classList.add('class-summary');
             summary.innerHTML = `
-                ${renderSummaryLine("총 학생 수", classData.summary["총 학생 수"], classData.originalSummary["총 학생 수"])}
-                ${renderSummaryLine("남학생 수", classData.summary["남학생 수"], classData.originalSummary["남학생 수"])}
-                ${renderSummaryLine("여학생 수", classData.summary["여학생 수"], classData.originalSummary["여학생 수"])}
-                <p>학급 전체 점수: ${classData.summary["학급 전체 점수"]}</p>
+                ${renderSummaryLine("남학생 수", classData.summary["남학생 수"], totalMaleStudents, numClasses)}
+                ${renderSummaryLine("여학생 수", classData.summary["여학생 수"], totalFemaleStudents, numClasses)}
+                ${renderSummaryLine("총 학생 수", classData.summary["총 학생 수"], totalMaleStudents + totalFemaleStudents, numClasses)}
             `;
             classBox.appendChild(summary);
         }
@@ -132,19 +133,25 @@ function resetColors() {
 }
 
 
-// Render a single summary line with comparison
-function renderSummaryLine(label, currentValue, originalValue) {
-    const difference = currentValue - originalValue;
-    let color = "black";
-    if (difference > 0) color = "blue"; // 값이 증가한 경우
-    else if (difference < 0) color = "red"; // 값이 감소한 경우
+function renderSummaryLine(label, currentValue, totalStudents, numClasses) {
+    // 기준값 계산
+    const baseline = Math.floor(totalStudents / numClasses);
+    const tolerance = 1; // ±1 범위 허용
+    const difference = currentValue - baseline;
 
+    // 색상 결정
+    let color = "black";
+    if (difference > tolerance) color = "blue"; // 기준값보다 크게 초과
+    else if (difference < -tolerance) color = "red"; // 기준값보다 크게 미달
+
+    // UI 생성
     return `
         <p style="color: ${color};">
-            ${label}: ${currentValue} (${difference >= 0 ? "+" : ""}${difference})
+            ${label}: ${currentValue} (기준: ${baseline} ±${tolerance}, 변화: ${difference >= 0 ? "+" : ""}${difference})
         </p>
     `;
 }
+
 
 
 // Allow drop
@@ -207,7 +214,21 @@ function calculateStudentScore(student) {
     return score;
 }
 
+function calculateTotalStudents(classesData) {
+    let totalMaleStudents = 0;
+    let totalFemaleStudents = 0;
 
+    for (const classData of Object.values(classesData)) {
+        totalMaleStudents += classData.summary["남학생 수"] || 0;
+        totalFemaleStudents += classData.summary["여학생 수"] || 0;
+    }
+
+    return { totalMaleStudents, totalFemaleStudents };
+}
+
+function calculateNumClasses(classesData) {
+    return Object.keys(classesData).length;
+}
 
 async function saveChanges() {
     console.log("Sending data to server:", classesData); // 디버깅용 데이터 출력
@@ -251,6 +272,8 @@ async function saveToExcel() {
 async function fetchClasses() {
     const response = await fetch('/get_classes');
     classesData = await response.json();
+
+    numClasses = calculateNumClasses(classesData)-1;    
 
     // 원본 요약 정보 저장
     for (const [className, classData] of Object.entries(classesData)) {
